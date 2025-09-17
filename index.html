@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Random Team Generator (Optimized)</title>
+  <style>
+    body { font-family: 'Roboto', Arial, sans-serif; background: #f8f9fa; margin: 0; }
+    .container { max-width: 700px; margin: 36px auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 24px #0002; padding: 32px; }
+    h2 { text-align: center; margin-bottom: 26px; color: #007bff; }
+    .inputs { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+    .input-group { flex: 1 1 180px; min-width: 180px; }
+    label { font-weight: bold; display: block; margin-bottom: 6px; color: #333; }
+    textarea, input[type="number"], select {
+      width: 100%; font-size: 1rem; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 8px; box-sizing: border-box;
+    }
+    button { background: #007bff; color: white; border: none; border-radius: 6px; padding: 10px 20px; font-size: 1.1rem; cursor: pointer; margin-top: 12px; margin-right:8px; }
+    button:hover { background: #0056b3; }
+    .error { color: #d00; font-weight: bold; text-align: center; margin-top: 16px; }
+    .teams { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; margin-top: 32px; }
+    .team-card { border-radius: 10px; box-shadow: 0 2px 8px #0001; padding: 18px 20px; min-width: 180px; flex: 1 1 180px; margin-bottom: 16px; color: #222; background: #f1f6fb;}
+    .team-card h3 { margin-top: 0; margin-bottom: 8px; color: #333; }
+    .captain { font-size: 0.95em; color: #007bff; }
+    ul { padding-left: 20px; margin: 0; }
+    .features { margin-top: 18px; }
+    .team-size-group { margin-top: 8px; }
+    .summary { margin-top: 28px; background: #f8f9fa; border-radius: 8px; padding: 12px; font-size: 1.05em; }
+    .randomize-captains-btn {
+      background: #28a745; color: #fff; border: none; border-radius: 6px; padding: 10px 20px; font-size: 1.05rem; margin-top: 10px; margin-right: 8px; cursor: pointer;
+    }
+    .randomize-captains-btn:hover { background: #218838; }
+    .reset-btn {
+      background: #dc3545; color: #fff; border: none; border-radius: 6px; padding: 10px 20px; font-size: 1.05rem; margin-top: 10px; cursor: pointer;
+    }
+    .reset-btn:hover { background: #b52a37; }
+    .unassigned { background: #ffe9e9; border-radius: 6px; padding: 8px; margin-top: 16px; color: #8a0101; }
+    .team-stat { margin-top:10px; font-size: .97em; color: #333; }
+    @media (max-width: 600px) {
+      .inputs { flex-direction: column; gap: 0; }
+      .teams { flex-direction: column; gap: 0; }
+      .team-card { min-width: unset; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Random Team Generator (Optimized)</h2>
+    <div class="inputs">
+      <div class="input-group">
+        <label for="members">Members (one per line):</label>
+        <textarea id="members" rows="8">Alice
+Bob
+Charlie
+David
+Eve
+Frank
+Grace
+Heidi
+Ivan
+Judy
+Mallory
+Oscar
+Peggy</textarea>
+      </div>
+      <div class="input-group">
+        <label for="numTeams">Number of Teams:</label>
+        <input id="numTeams" type="number" min="1" value="3" />
+      </div>
+      <div class="input-group team-size-group">
+        <label for="teamSize">Team Size (optional):</label>
+        <input id="teamSize" type="number" min="1" value="" placeholder="Auto"/>
+      </div>
+      <div class="input-group">
+        <label>Choose Captains:</label>
+        <div id="captainSelectors"></div>
+        <button class="randomize-captains-btn" id="randomizeCaptainsBtn">Randomize Captains</button>
+      </div>
+      <div class="input-group features">
+        <button id="generateBtn">Generate Teams</button>
+        <button class="reset-btn" id="resetBtn">Reset</button>
+      </div>
+    </div>
+    <div id="error" class="error"></div>
+    <div id="summary" class="summary"></div>
+    <div id="unassigned" class="unassigned"></div>
+    <div id="teams" class="teams"></div>
+  </div>
+  <script>
+    class TeamGenerator {
+      constructor(members, numTeams, teamSize, captains) {
+        this.members = members.filter(Boolean);
+        this.numTeams = numTeams;
+        this.teamSize = teamSize;
+        this.captains = captains;
+      }
+
+      static shuffle(arr) {
+        let array = arr.slice();
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      assignTeams() {
+        let pool = this.members.filter(m => !this.captains.includes(m));
+        let membersShuffled = TeamGenerator.shuffle(pool);
+
+        let teams = Array.from({length: this.numTeams}, (_, i) => ({
+          captain: this.captains[i] || null,
+          members: [],
+        }));
+
+        let maxMembers = this.teamSize && this.teamSize > 0
+          ? this.teamSize
+          : Math.ceil(membersShuffled.length / this.numTeams);
+
+        let idx = 0;
+        membersShuffled.forEach(member => {
+          let placed = false, attempts = 0;
+          while (!placed && attempts < this.numTeams) {
+            if (teams[idx % this.numTeams].members.length < maxMembers) {
+              teams[idx % this.numTeams].members.push(member);
+              placed = true;
+            }
+            idx++;
+            attempts++;
+          }
+        });
+
+        let assignedMembers = teams.flatMap(t => t.members);
+        let unassigned = membersShuffled.filter(m => !assignedMembers.includes(m));
+        return { teams, unassigned };
+      }
+
+      static resetForm(defaults) {
+        document.getElementById('members').value = defaults.members;
+        document.getElementById('numTeams').value = defaults.numTeams;
+        document.getElementById('teamSize').value = '';
+        updateCaptainSelectors();
+        document.getElementById('error').textContent = '';
+        document.getElementById('teams').innerHTML = '';
+        document.getElementById('summary').innerHTML = '';
+        document.getElementById('unassigned').innerHTML = '';
+      }
+
+      static showSummary(teams, totalMembers, captains) {
+        let html = `<strong>Summary:</strong><br>
+          Total Members (excluding captains): <b>${totalMembers}</b><br>
+          Number of Teams: <b>${teams.length}</b><br>
+          Captains: <b>${captains.join(', ')}</b><br>`;
+        teams.forEach((team, i) => {
+          html += `Team ${i + 1} size (including captain): <b>${team.members.length + 1}</b><br>`;
+        });
+        document.getElementById('summary').innerHTML = html;
+      }
+    }
+
+    function getMembers() {
+      return document.getElementById('members').value.split('\n').map(m => m.trim()).filter(Boolean);
+    }
+
+    function getNumTeams() {
+      return parseInt(document.getElementById('numTeams').value, 10) || 1;
+    }
+
+    function getTeamSize() {
+      const sizeVal = document.getElementById('teamSize').value;
+      return sizeVal ? parseInt(sizeVal, 10) : null;
+    }
+
+    function getCaptains() {
+      return Array.from(document.querySelectorAll('.captain-select')).map(sel => sel.value);
+    }
+
+    function updateCaptainSelectors() {
+      const members = getMembers();
+      const numTeams = getNumTeams();
+      const selectorsDiv = document.getElementById('captainSelectors');
+      selectorsDiv.innerHTML = '';
+      for (let i = 0; i < numTeams; i++) {
+        const label = document.createElement('label');
+        label.innerText = `Captain for Team ${i + 1}:`;
+        label.style.display = "block";
+        label.style.marginBottom = "2px";
+        const select = document.createElement('select');
+        select.className = "captain-select";
+        select.name = `captain${i}`;
+        members.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.innerText = m;
+          select.appendChild(opt);
+        });
+        selectorsDiv.appendChild(label);
+        selectorsDiv.appendChild(select);
+      }
+    }
+
+    function validateInputs(members, numTeams, captains, teamSize) {
+      if (numTeams < 1 || numTeams > members.length)
+        return "Number of teams must be at least 1 and at most number of members.";
+      if (new Set(captains).size < numTeams)
+        return "Each captain must be unique.";
+      if (captains.some(c => !members.includes(c)))
+        return "Captains must be chosen from the members list.";
+      if (teamSize && (teamSize < 1 || teamSize > (members.length - numTeams + 1)))
+        return "Invalid team size.";
+      return "";
+    }
+
+    document.getElementById('members').addEventListener('input', updateCaptainSelectors);
+    document.getElementById('numTeams').addEventListener('input', updateCaptainSelectors);
+
+    // Initial render
+    updateCaptainSelectors();
+
+    document.getElementById('randomizeCaptainsBtn').onclick = function () {
+      const members = getMembers();
+      const numTeams = getNumTeams();
+      if (members.length < numTeams) return;
+      const chosenCaptains = TeamGenerator.shuffle(members).slice(0, numTeams);
+      const captainSelects = document.querySelectorAll('.captain-select');
+      captainSelects.forEach((sel, i) => {
+        sel.value = chosenCaptains[i];
+      });
+    };
+
+    document.getElementById('resetBtn').onclick = function () {
+      TeamGenerator.resetForm({
+        members: `Alice
+Bob
+Charlie
+David
+Eve
+Frank
+Grace
+Heidi
+Ivan
+Judy
+Mallory
+Oscar
+Peggy`,
+        numTeams: 3
+      });
+    };
+
+    document.getElementById('generateBtn').onclick = function () {
+      const members = getMembers();
+      const numTeams = getNumTeams();
+      const teamSize = getTeamSize();
+      const captains = getCaptains();
+
+      const errorMsg = validateInputs(members, numTeams, captains, teamSize);
+      document.getElementById('error').textContent = errorMsg;
+      document.getElementById('teams').innerHTML = '';
+      document.getElementById('summary').innerHTML = '';
+      document.getElementById('unassigned').innerHTML = '';
+      if (errorMsg) return;
+
+      const generator = new TeamGenerator(members, numTeams, teamSize, captains);
+      const { teams, unassigned } = generator.assignTeams();
+
+      teams.forEach((team, i) => {
+        const card = document.createElement('div');
+        card.className = 'team-card';
+        card.innerHTML = `
+          <h3>Team ${i + 1} <span class="captain">(${team.captain})</span></h3>
+          <ul>
+            <li><b>Captain:</b> ${team.captain}</li>
+            ${team.members.map((m) => `<li>${m}</li>`).join('')}
+          </ul>
+          <div class="team-stat">
+            <b>Team Member Count:</b> ${team.members.length}
+          </div>
+        `;
+        document.getElementById('teams').appendChild(card);
+      });
+
+      TeamGenerator.showSummary(teams, members.filter(m => !captains.includes(m)).length, captains);
+
+      if (unassigned.length) {
+        document.getElementById('unassigned').innerHTML =
+          `<b>Unassigned Members:</b> ${unassigned.join(', ')}`;
+      }
+    };
+  </script>
+</body>
+</html>
